@@ -34,8 +34,28 @@ enableAstart = True
 
 zoom = False
 
+
+def clean_cos(cos_angle):
+    return min(1,max(cos_angle,-1))
+
+def distanceA(pointA, pointB):
+    longA = pointA[0]
+    longB =pointB[0]
+    latA = pointA[1]
+    latB=pointB[1]
+    deltaLong = longB - longA
+    # distance angulaire en radian
+    S_AB = math.acos(clean_cos(math.sin(latA)*math.sin(latB)+math.cos(latA)*math.cos(latB)*math.cos(deltaLong)))
+    # distance en metre= distance angulaire * rayon terre
+    return (S_AB* 6378000)
+
+
+
+
 def distanceManhattan( XY1, XY2 ):
   return math.sqrt((XY1[0]-XY2[0])**2+(XY1[1]-XY2[1])**2)
+def getDistanceLongLat( noeud1, noeud2 ):
+    return distanceA(graphe[noeud1][1], graphe[noeud2][1])
 def getEstimation( graphe, noeud, arc, scale) :
   global maxDistance, maxSecurite
   distance = arc[1]
@@ -43,13 +63,7 @@ def getEstimation( graphe, noeud, arc, scale) :
   if enableScale :
     return distance / maxDistance * scale + insecurite / maxSecurite * (1-scale)
   else:
-    if enableAstart :
-      X1 = getXY(graphe[arc[0]][1][2],graphe[arc[0]][1][3])
-      X2 = getXY(graphe[noeudFin][1][2],graphe[noeudFin][1][3])
-      print(arc[0],((X2[0]-X1[0])*(X2[0]-X1[0])+(X2[1]-X1[1])*(X2[1]-X1[1])))
-      return distance + distanceLongLat((graphe[arc[0]][1][0], graphe[arc[0]][1][1]), (graphe[noeudFin][1][0], graphe[noeudFin][1][1])) #distanceManhattan(X1, X2)
-    else:
-      return distance
+    return distance
 
 def tracerArc(canvas, graphe):
   for noeud in graphe :
@@ -65,12 +79,16 @@ def minDist(aParc, dist) :
     return -1
   minNoeud = aParc[0]
   for noeud in aParc[1:]:
-    if dist[noeud][0] < dist[minNoeud][0] :
-      minNoeud = noeud
+    if enableAstart :
+      if dist[noeud][0] + getDistanceLongLat(noeud, noeudFin) < dist[minNoeud][0] + getDistanceLongLat(minNoeud, noeudFin) :
+        minNoeud = noeud
+    else:
+      if dist[noeud][0] < dist[minNoeud][0] :
+            minNoeud = noeud
   return minNoeud
 
 def getAbsolutDistance( graphe, noeudA, noeudB ):
-  return math.sqrt(graphe[noeudA][1][0]*graphe[noeudB][1][0]+graphe[noeudA][1][1]*graphe[noeudB][1][1])
+  return math.sqrt(graphe[noeudA][1][0]*graphe[noeudB][1][0]+graphe[noeudA][1][1]*graphE[NOEUDb][1][1])
 
 def dijkstra(graphe, debut, fin, scale):
    # Distance contient les distances minimales calculées à partir de debut et le dernier élement permettant d'acceder à celui-ci
@@ -78,8 +96,6 @@ def dijkstra(graphe, debut, fin, scale):
   dist = [(-1,-1)]*len(graphe)
 
   dist[debut] = (0,debut)
-  if enableAstart : 
-    dist[debut] = (distanceManhattan((graphe[debut][1][2], graphe[debut][1][3]), (graphe[fin][1][2], graphe[fin][1][3])), debut)
   aParc = [debut]
   proche = debut
   while aParc != [] and proche != fin :
@@ -87,7 +103,6 @@ def dijkstra(graphe, debut, fin, scale):
     for arc in graphe[proche][2]:
       if dist[arc[0]][0] == -1 :
         dist[arc[0]] = (dist[proche][0]+getEstimation(graphe, proche, arc, scale) ,proche)
-        #dist[arc[0]] = (dist[proche][0]+(getEstimation(arc[1], arc[2], scale)),proche)
         aParc.append(arc[0])
       else:
         if dist[arc[0]][0] > dist[proche][0]+getEstimation(graphe, proche, arc, scale) :
